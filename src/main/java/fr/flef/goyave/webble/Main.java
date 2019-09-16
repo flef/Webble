@@ -21,7 +21,7 @@ public class Main
     {
         
         
-        Path docx = Paths.get("C:\\Users\\Florian\\Desktop\\Weble\\step4.docx");
+        Path docx = Paths.get("C:\\Users\\Florian\\Desktop\\Weble\\step5.docx");
 
         
         try
@@ -33,8 +33,8 @@ public class Main
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        
-        
+//        
+//        
         final Map<String, Object> context = new HashMap<>();
         context.put("names", Arrays.asList(new String[] { "Nalish AYA", "Florian LEF" }));
         context.put("dates", Arrays.asList(new Date[] { Date.from(Instant.now()) }));
@@ -48,7 +48,7 @@ public class Main
         context.put("list", items);
 
         
-//        System.err.println(WebbleEngineXml.evaluate(docx, context));
+        System.err.println(WebbleEngineXml.evaluate(docx, context));
     }
 
 }
