@@ -17,24 +17,13 @@ import org.xml.sax.SAXException;
 public class Main
 {
 
-    public static void main(String[] args) throws IOException, ParserConfigurationException, SAXException
+    public static void main(String[] args) throws IOException
     {
-        
-        
         Path docx = Paths.get("C:\\Users\\Florian\\Desktop\\Weble\\step5.docx");
-
         
-        try
-        {
-            WebbleEngineXml.prepare(docx);
-        }
-        catch (TransformerException e)
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-//        
-//        
+        WebbleTemplate template = WebbleEngine.prepare(docx);
+        
+            
         final Map<String, Object> context = new HashMap<>();
         context.put("names", Arrays.asList(new String[] { "Nalish AYA", "Florian LEF" }));
         context.put("dates", Arrays.asList(new Date[] { Date.from(Instant.now()) }));
@@ -48,7 +37,8 @@ public class Main
         context.put("list", items);
 
         
-        System.err.println(WebbleEngineXml.evaluate(docx, context));
+        System.err.println(WebbleEngine.evaluate(docx, context));
+        System.err.println(WebbleEngine.evaluate(template, context));
     }
 
 }

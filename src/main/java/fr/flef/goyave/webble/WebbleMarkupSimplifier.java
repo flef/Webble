@@ -56,7 +56,7 @@ public class WebbleMarkupSimplifier
      * 
      * @throws IOException if content cannot be parsed to a valid {@link Document}.
      */
-    public static Document toDocument(String xmlContent) throws IOException
+    public static Document stringToDocument(String xmlContent) throws IOException
     {
         try
         {
@@ -79,7 +79,7 @@ public class WebbleMarkupSimplifier
      * 
      * @throws IllegalStateException if document cannot be serialize to a {@link String}.
      */
-    public static String toString(Document doc)
+    public static String documentToString(Document doc)
     {
         try
         {

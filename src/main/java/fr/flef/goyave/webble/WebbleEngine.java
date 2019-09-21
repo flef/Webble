@@ -6,217 +6,221 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.jdom2.Comment;
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.Namespace;
+import org.jdom2.Parent;
+import org.jdom2.filter.ElementFilter;
+
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.loader.StringLoader;
 
 public class WebbleEngine
 {
-    /** 
-     * Prepares the docx to be used as a template.
-     * Only to use for multiple evaluation of the same template.
+    /** w: namespace. */
+    private final static Namespace NS_W = Namespace.getNamespace("w",
+            "http://schemas.openxmlformats.org/wordprocessingml/2006/main");
+
+    /**
+     * Prepares the docx document to be used as a template.
      * For single use, see {@link #evaluate(Path, Map)}.
      */
     public static WebbleTemplate prepare(Path docx) throws IOException
     {
         Path unpackageDocx = Packager.unpackageDocx(docx);
 
-        List<Path> parts = Files.list(unpackageDocx.resolve("word"))
-                .filter(f -> f.getFileName().toString().matches("((document)|(header\\d+)|(footer\\d+)).xml"))
-                .collect(Collectors.toList());
+        Path doc = unpackageDocx.resolve("word/document.xml");
 
-        Map<Path, String> templates = new HashMap<>();
-        for (Path p : parts)
-        {
-            String template = Files.readAllLines(p).stream()
-                    .map(WebbleEngine::preFilterStatement)
-                    .map(WebbleEngine::filterStatement)
-                    .map(WebbleEngine::filterMacro)
-                    .map(WebbleEngine::filterSetters)
-                    .map(WebbleEngine::preFilterInlineLoop)
-                    .map(WebbleEngine::replaceLoopStart)
-                    .map(WebbleEngine::replaceLoopEnd)
-                    .map(WebbleEngine::postFilterInlineLoop)
-                    .map(WebbleEngine::repeatLinesStart)
-                    .map(WebbleEngine::repeatLinesEnd)
-                    .map(WebbleEngine::renderBg)
-                    .collect(Collectors.joining());
-            
-            templates.put(p, template);
-        }
+        String xmlContent = prepareDocument(doc);
+
+        System.err.println(xmlContent);
         
+        Files.write(doc, Arrays.asList(new String[] { xmlContent }), StandardOpenOption.TRUNCATE_EXISTING);
         
-        
-        return null;
+        Path packageTemplate = Packager.packageDocx(unpackageDocx);
+        return new WebbleTemplate(packageTemplate, docx.getFileName().toString().replaceFirst("(.*)\\.docx$", "$1"));
     }
-    
     
     public static Path evaluate(Path docx, Map<String, Object> context) throws IOException
     {
         Path unpackageDocx = Packager.unpackageDocx(docx);
-
-        Writer writer = new StringWriter();
+    
         PebbleEngine engine = new PebbleEngine.Builder().loader(new StringLoader()).build();
-
+    
         Path doc = unpackageDocx.resolve("word/document.xml");
-
-        Files.readAllLines(doc).stream()
-                .map(WebbleEngine::preFilterStatement)
-                .map(WebbleEngine::filterStatement)
-                .map(WebbleEngine::filterMacro)
-                .map(WebbleEngine::filterSetters)
-                .map(WebbleEngine::preFilterInlineLoop)
-                .map(WebbleEngine::replaceLoopStart)
-                .map(WebbleEngine::replaceLoopEnd)
-                .map(WebbleEngine::postFilterInlineLoop)
-                .map(WebbleEngine::repeatLinesStart)
-                .map(WebbleEngine::repeatLinesEnd)
-                .map(WebbleEngine::renderBg)
-                .map(engine::getTemplate)
-                .forEach(t ->
-                {
-                    try
-                    {
-                        t.evaluate(writer, context);
-                    }
-                    catch (IOException e)
-                    {
-                        System.err.println(writer.toString());
-                        e.printStackTrace();
-                    }
-                });
-
+    
+        String xmlContent = prepareDocument(doc);
+    
+        Writer writer = new StringWriter();
+        engine.getTemplate(xmlContent).evaluate(writer, context);
         Files.write(doc, Arrays.asList(new String[] { writer.toString().replaceAll("\n", "<w:br/>") }),
                 StandardOpenOption.TRUNCATE_EXISTING);
-
+    
+        return Packager.packageDocx(unpackageDocx);
+    }
+    
+    public static Path evaluate(WebbleTemplate template, Map<String, Object> context) throws IOException
+    {
+        Path unpackageDocx = Packager.unpackageDocx(template.getTemplatePath());
+    
+        PebbleEngine engine = new PebbleEngine.Builder().loader(new StringLoader()).build();
+    
+        Path doc = unpackageDocx.resolve("word/document.xml");
+    
+        String xmlContent = Files.readAllLines(doc).stream().collect(Collectors.joining());
+    
+        Writer writer = new StringWriter();
+        engine.getTemplate(xmlContent).evaluate(writer, context);
+        Files.write(doc, Arrays.asList(new String[] { writer.toString().replaceAll("\n", "<w:br/>") }),
+                StandardOpenOption.TRUNCATE_EXISTING);
+    
         return Packager.packageDocx(unpackageDocx);
     }
 
-    private static String replaceLoopStart(String content)
+    private static String prepareDocument(Path doc) throws IOException
+    {
+        String xmlContent = Files.readAllLines(doc).stream().collect(Collectors.joining());
+        Document xmlDoc = WebbleMarkupSimplifier.stringToDocument(xmlContent);
+
+        WebbleMarkupSimplifier.simplifyContent(xmlDoc);
+        moveStatementsInTableRow(xmlDoc);
+        moveStatementsInParagraph(xmlDoc);
+        
+        // Treat macro and setters
+        xmlContent = WebbleMarkupSimplifier.documentToString(xmlDoc);
+        xmlContent = removeComments(xmlContent);
+        xmlContent = removeNewLines(xmlContent);
+        xmlContent = WebbleEngine.filterStatement(xmlContent);
+        
+        return xmlContent;
+    }
+
+    private static String removeNewLines(String xmlContent)
+    {
+        return xmlContent.replaceAll("\r\n", "");
+    }
+
+    private static void moveStatementsInParagraph(Document xmlDoc)
+    {
+        List<Element> ps = new ArrayList<>();
+        xmlDoc.getDescendants(new ElementFilter("p", NS_W)
+        {
+            @Override
+            public Element filter(Object content)
+            {
+                if (super.filter(content) != null)
+                {
+                    Element p = (Element) content;
+                    
+                    String childrenText = getChildrenText(p, NS_W, "r", "t");
+                    if (childrenText.trim().matches("(\\{%.*?%\\}\\s*)+"))
+                    {
+                        return p;
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }).forEach(ps::add);
+        
+        for (Element p : ps)
+        {
+            String childText = getChildrenText(p, NS_W, "r", "t");
+            Parent parent = p.getParent();
+            int currentIndex = parent.indexOf(p);
+            parent.addContent(currentIndex, new Comment(childText));
+            p.detach();
+        }
+    }
+
+    private static void moveStatementsInTableRow(Document xmlDoc)
+    {
+        List<Element> trs = new ArrayList<>();
+        xmlDoc.getDescendants(new ElementFilter("tr", NS_W)
+        {
+            @Override
+            public Element filter(Object content)
+            {
+                if (super.filter(content) != null)
+                {
+                    Element tr = (Element) content;
+
+                    String childrenText = getChildrenText(tr, NS_W, "tc", "p", "r", "t");
+                    if (childrenText.trim().matches("(\\{%.*?%\\}\\s*)+"))
+                    {
+                        return tr;
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }).forEach(trs::add);
+
+        for (Element tr : trs)
+        {
+            String childText = getChildrenText(tr, NS_W, "tc", "p", "r", "t");
+            Parent parent = tr.getParent(); // TR -> TR's PARENT
+            int currentIndex = parent.indexOf((Element) tr);
+            parent.addContent(currentIndex, new Comment(childText));
+            ((Element) tr).detach(); // Detach TR
+        }
+    }
+
+    private static String removeComments(String xmlContent)
     {
         StringBuffer sb = new StringBuffer();
 
-        Pattern endfor = Pattern.compile(
-                "(<(w:p)(?:(?!<\\2 ).)*?)(\\{\\%\\s*for[^\\%]*\\%\\}).*?</\\2>");
+        Pattern comment = Pattern.compile("\\<!--(.*?)--\\>");
 
-        Matcher m = endfor.matcher(content);
+        Matcher m = comment.matcher(xmlContent);
         while (m.find())
         {
-            m.appendReplacement(sb, m.group(3));
+            m.appendReplacement(sb, m.group(1));
         }
         m.appendTail(sb);
 
         return sb.toString();
     }
 
-    private static String replaceLoopEnd(String content)
+    private static String getChildrenText(Element e, Namespace ns, String... children)
     {
-        StringBuffer sb = new StringBuffer();
+        List<Element> currentElements = new ArrayList<>();
+        currentElements.add(e);
 
-        Pattern endfor = Pattern.compile(
-                "(<(w:p)(?:(?!<\\2 ).)*?)(\\{\\%\\s*endfor[^\\%]*\\%\\}).*?</\\2>");
-
-        Matcher m = endfor.matcher(content);
-        while (m.find())
+        for (String child : children)
         {
-            m.appendReplacement(sb, "{% endfor %}");
-        }
-        m.appendTail(sb);
-
-        return sb.toString();
-    }
-
-    private static String renderBg(String content)
-    {
-        StringBuffer sb = new StringBuffer();
-
-        Pattern endfor = Pattern.compile(
-                "(<(w:tr)(?:(?!<\\2 ).)*?)(\\{\\%\\s*renderif([^\\%]*)\\%\\})(.*?</\\2>)");
-
-        Matcher m = endfor.matcher(content);
-        while (m.find())
-        {
-            m.appendReplacement(sb, "{% if " + m.group(4) + "%}" + m.group(1) + m.group(5) + "{% endif %}");
-        }
-        m.appendTail(sb);
-
-        return sb.toString();
-    }
-
-    private static String preFilterInlineLoop(String content)
-    {
-        StringBuffer sb = new StringBuffer();
-
-        Pattern endfor = Pattern.compile(
-                "(<(w:p)(?:(?!<\\2 ).)*?)(\\{\\%\\s*for[^\\%]*\\%\\})"
-                        + "((?:(?!(?:<\\2|for) ).)*?)"
-                        + "(\\{\\%\\s*endfor\\s*\\%\\})(.*?</\\2>)");
-
-        Matcher m = endfor.matcher(content);
-        while (m.find())
-        {
-            m.appendReplacement(sb, m.group(0).replaceAll("for", "INLINED_FOR"));
-        }
-        m.appendTail(sb);
-
-        return sb.toString();
-    }
-
-    private static String postFilterInlineLoop(String content)
-    {
-        return content.replaceAll("INLINED_FOR", "for");
-    }
-
-    private static String repeatLinesStart(String content)
-    {
-        StringBuffer sb = new StringBuffer();
-
-        Pattern endfor = Pattern.compile(
-                "(<(w:tr)(?:(?!<\\2 ).)*?)(\\{\\%\\s*repeat (.*?) as (([^\\%])*?)\\%\\})(.*?</\\2>)");
-
-        Matcher m = endfor.matcher(content);
-        // 2 repeat can be on the same line. Matcher has to be reset to match both.
-        while (m.find())
-        {
-            m.appendReplacement(sb, "{% for " + m.group(5) + " in " + m.group(4) + " %}"
-                    + m.group(1) + m.group(7));
-            m.appendTail(sb);
-            m.reset(sb.toString());
-            sb = new StringBuffer();
+            currentElements = currentElements.stream()
+                    .flatMap(c -> c.getChildren(child, ns).stream())
+                    .collect(Collectors.toList());
         }
 
-        m.appendTail(sb);
+        String childText = currentElements.stream()
+                .map(c -> c.getText())
+                .map(t -> t == null ? "" : t)
+                .collect(Collectors.joining());
 
-        return sb.toString();
-    }
-
-    private static String repeatLinesEnd(String content)
-    {
-        StringBuffer sb = new StringBuffer();
-
-        Pattern endfor = Pattern.compile(
-                "(<(w:tr)(?:(?!<\\2 ).)*?)(\\{\\%\\s*endrepeat(([^\\%])*?)\\%\\})(.*?</\\2>)");
-
-        Matcher m = endfor.matcher(content);
-
-        // 2 endrepeat can be on the same line. Matcher has to be reset to match both.
-        while (m.find())
-        {
-            m.appendReplacement(sb, m.group(1) + m.group(6) + "{% endfor %}");
-            m.appendTail(sb);
-            m.reset(sb.toString());
-            sb = new StringBuffer();
-        }
-
-        m.appendTail(sb);
-        return sb.toString();
+        return childText;
     }
 
     private static String filterStatement(String content)
@@ -229,7 +233,7 @@ public class WebbleEngine
         while (m.find())
         {
             String filteredContent = m.group(0)
-                    .replaceAll("</?w:.*?>", "") // Remove XML Nodes
+                    .replaceAll("<[^>]+>", "") // Remove XML Nodes
                     .replaceAll("(« ?)|( ?»)", "\"")
                     .replaceAll("(‘ ?)|( ?’)", "'")
                     .replaceAll("&gt;", ">")
@@ -243,58 +247,4 @@ public class WebbleEngine
 
         return sb.toString();
     }
-
-    private static String preFilterStatement(String content)
-    {
-        StringBuffer sb = new StringBuffer();
-
-        Pattern statement = Pattern.compile("\\{(?:(?!%).)*?\\{(.*?)\\}.*?\\}");
-        Matcher m = statement.matcher(content);
-
-        while (m.find())
-        {
-            m.appendReplacement(sb, "{{" + m.group(1) + "}}");
-        }
-
-        m.appendTail(sb);
-
-        return sb.toString();
-    }
-
-    private static String filterMacro(String content)
-    {
-        StringBuffer sb = new StringBuffer();
-
-        Pattern statement = Pattern.compile("(<(w:p)(?:(?!<\\2 ).)*?)(\\{\\%\\s*macro[^\\%]*\\%\\})"
-                + "((?:(?!<\\2 ).)*?)"
-                + "(\\{\\%\\s*endmacro\\s*\\%\\})(.*?</\\2>)");
-        Matcher m = statement.matcher(content);
-
-        while (m.find())
-        {
-            m.appendReplacement(sb, m.group(3) + m.group(4) + "{% endmacro %}");
-        }
-
-        m.appendTail(sb);
-
-        return sb.toString();
-    }
-
-    private static String filterSetters(String content)
-    {
-        StringBuffer sb = new StringBuffer();
-
-        Pattern statement = Pattern.compile("(<(w:p)(?:(?!<\\2 ).)*?)(\\{\\%\\s*set[^\\%]*\\%\\}).*?</\\2>");
-        Matcher m = statement.matcher(content);
-
-        while (m.find())
-        {
-            m.appendReplacement(sb, m.group(3));
-        }
-
-        m.appendTail(sb);
-
-        return sb.toString();
-    }
-
 }
