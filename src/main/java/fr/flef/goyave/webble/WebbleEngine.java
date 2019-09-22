@@ -24,6 +24,9 @@ import org.jdom2.filter.ElementFilter;
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.loader.StringLoader;
 
+/**
+ * This class is used to generate docx document from a template and a given context.
+ */
 public class WebbleEngine
 {
     /** w: namespace. */
@@ -41,8 +44,6 @@ public class WebbleEngine
         Path doc = unpackageDocx.resolve("word/document.xml");
 
         String xmlContent = prepareDocument(doc);
-
-        System.err.println(xmlContent);
         
         Files.write(doc, Arrays.asList(new String[] { xmlContent }), StandardOpenOption.TRUNCATE_EXISTING);
         
@@ -50,6 +51,10 @@ public class WebbleEngine
         return new WebbleTemplate(packageTemplate, docx.getFileName().toString().replaceFirst("(.*)\\.docx$", "$1"));
     }
     
+    /**
+     * Evaluates the given docx template, prepare it and generate focument with the given context.
+     * For single use only. For bulk uses, see {@link WebbleEngine#prepare(Path)}.
+     */
     public static Path evaluate(Path docx, Map<String, Object> context) throws IOException
     {
         Path unpackageDocx = Packager.unpackageDocx(docx);
@@ -68,6 +73,9 @@ public class WebbleEngine
         return Packager.packageDocx(unpackageDocx);
     }
     
+    /**
+     * Evaluates the given {@link WebbleTemplate} to generate a document with the given context.
+     */
     public static Path evaluate(WebbleTemplate template, Map<String, Object> context) throws IOException
     {
         Path unpackageDocx = Packager.unpackageDocx(template.getTemplatePath());
