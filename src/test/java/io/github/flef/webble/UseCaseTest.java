@@ -60,7 +60,8 @@ public class UseCaseTest
         
         // Prepare docx -> .wbbl
         WebbleTemplate template = WebbleEngine.prepare(docx);
-        System.out.println("Document generated at:" + WebbleEngine.evaluate(template, CONTEXT));
+        System.out.println("Document 1 generated at:" + WebbleEngine.evaluate(template, CONTEXT));
+        System.out.println("Document 2 generated at:" + WebbleEngine.evaluate(template, CONTEXT));
     }
     
     /**

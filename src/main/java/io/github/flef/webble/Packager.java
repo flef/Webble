@@ -14,7 +14,7 @@ import java.util.zip.ZipOutputStream;
 /**
  * This class is used for package and unpackage DOCX documents.
  */
-public class Packager
+class Packager
 {
     /**
      * Unpackage a docx file.

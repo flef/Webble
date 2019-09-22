@@ -24,7 +24,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /** Simplify WordProcessingML XML markup file. */
-public class WebbleMarkupSimplifier
+class WebbleMarkupSimplifier
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(WebbleMarkupSimplifier.class);
     
@@ -44,7 +44,7 @@ public class WebbleMarkupSimplifier
      * Simplifies WordProcessingML XML markup file by removing Proof, RsidInfo, Bookmarks and adjacentRuns.
      * @param doc the {@link Document} to simplify.
      */
-    public static void simplifyContent(Document doc)
+    static void simplifyContent(Document doc)
     {
         removeProof(doc);
         removeRsidInfo(doc);
@@ -58,7 +58,7 @@ public class WebbleMarkupSimplifier
      * @return a {@link Document} object from the parse xmlContent.
      * @throws IOException if content cannot be parsed to a valid {@link Document}.
      */
-    public static Document stringToDocument(String xmlContent) throws IOException
+    static Document stringToDocument(String xmlContent) throws IOException
     {
         try
         {
@@ -82,7 +82,7 @@ public class WebbleMarkupSimplifier
      * @return the serialized XML representation of the given doc.
      * @throws IllegalStateException if document cannot be serialize to a {@link String}.
      */
-    public static String documentToString(Document doc)
+    static String documentToString(Document doc)
     {
         try
         {
