@@ -1,4 +1,4 @@
-package fr.flef.goyave.webble;
+package io.github.flef.webble;
 
 import java.io.File;
 import java.io.FileInputStream;

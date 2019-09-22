@@ -1,4 +1,4 @@
-package fr.flef.goyave.webble;
+package io.github.flef.webble;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -42,6 +42,7 @@ public class WebbleMarkupSimplifier
 
     /**
      * Simplifies WordProcessingML XML markup file by removing Proof, RsidInfo, Bookmarks and adjacentRuns.
+     * @param doc the {@link Document} to simplify.
      */
     public static void simplifyContent(Document doc)
     {
@@ -53,7 +54,8 @@ public class WebbleMarkupSimplifier
 
     /**
      * Creates a {@link Document} object from an XML content represented as a {@link String}.
-     * 
+     * @param xmlContent the document to parse.
+     * @return a {@link Document} object from the parse xmlContent.
      * @throws IOException if content cannot be parsed to a valid {@link Document}.
      */
     public static Document stringToDocument(String xmlContent) throws IOException
@@ -76,7 +78,8 @@ public class WebbleMarkupSimplifier
 
     /**
      * Serializes a {@link Document} object to its {@link String} representation.
-     * 
+     * @param doc the {@link Document} to serialize.
+     * @return the serialized XML representation of the given doc.
      * @throws IllegalStateException if document cannot be serialize to a {@link String}.
      */
     public static String documentToString(Document doc)

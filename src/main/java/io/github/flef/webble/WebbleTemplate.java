@@ -1,4 +1,4 @@
-package fr.flef.goyave.webble;
+package io.github.flef.webble;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -18,6 +18,7 @@ public class WebbleTemplate
     
     /**
      * The class constructor.
+     * @param webbleTemplate the path to the template.
      * @param name the name fo the template
      */
     WebbleTemplate(Path webbleTemplate, String name)
@@ -40,6 +41,7 @@ public class WebbleTemplate
     /**
      * Persists this {@link WebbleTemplate} to the given folder.
      * @param sourceFile the persisted {@link WebbleTemplate}.
+     * @return a {@link WebbleTemplate} object from the loaded sourceFile.
      * @throws IOException if the file cannot be read..
      */
     public static WebbleTemplate load(Path sourceFile) throws IOException
@@ -51,6 +53,7 @@ public class WebbleTemplate
 
     /**
      * Returns the template path.
+     * @return the template path.
      */
     public Path getTemplatePath()
     {
@@ -59,6 +62,7 @@ public class WebbleTemplate
 
     /**
      * Returns the name.
+     * @return the template name.
      */
     public String getName()
     {

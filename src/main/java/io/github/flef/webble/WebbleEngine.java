@@ -1,4 +1,4 @@
-package fr.flef.goyave.webble;
+package io.github.flef.webble;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -36,6 +36,9 @@ public class WebbleEngine
     /**
      * Prepares the docx document to be used as a template.
      * For single use, see {@link #evaluate(Path, Map)}.
+     * @param docx the path to a valid Microsoft Word Document used as the template.
+     * @return a {@link WebbleTemplate} from the given docx.
+     * @throws IOException if the given path is not a valid Microsoft Word Document, or the MS Word cannot be prepared.
      */
     public static WebbleTemplate prepare(Path docx) throws IOException
     {
@@ -54,6 +57,10 @@ public class WebbleEngine
     /**
      * Evaluates the given docx template, prepare it and generate focument with the given context.
      * For single use only. For bulk uses, see {@link WebbleEngine#prepare(Path)}.
+     * @param docx the path to a valid Microsoft Word Document used as the template.
+     * @param context the keys/values to bind with the template.
+     * @return the path to the created Microsoft Word Document from the given template and context.
+     * @throws IOException if the given path is not a valid Microsoft Word Document, or the MS Word cannot be evaluated.
      */
     public static Path evaluate(Path docx, Map<String, Object> context) throws IOException
     {
@@ -75,6 +82,11 @@ public class WebbleEngine
     
     /**
      * Evaluates the given {@link WebbleTemplate} to generate a document with the given context.
+     * @param template the {@link WebbleTemplate} used to generate the document.
+     * @param context the keys/values to bind with the template.
+     * @return the path to the created Microsoft Word Document from the given template and context.
+     * @throws IOException if the given template is not a valid {@link WebbleTemplate},
+     * or the {@link WebbleTemplate} cannot be evaluated.
      */
     public static Path evaluate(WebbleTemplate template, Map<String, Object> context) throws IOException
     {

@@ -1,4 +1,4 @@
-package fr.flef.goyave.webble;
+package io.github.flef.webble;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -12,6 +12,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.testng.annotations.Test;
+
+import io.github.flef.webble.WebbleEngine;
+import io.github.flef.webble.WebbleTemplate;
 
 /**
  * Test on a valid docx template document.
