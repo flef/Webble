@@ -44,18 +44,18 @@ public class WebbleEngine
     {
         Path unpackageDocx = Packager.unpackageDocx(docx);
 
-        Path doc = unpackageDocx.resolve("word/document.xml");
-
-        String xmlContent = prepareDocument(doc);
-        
-        Files.write(doc, Arrays.asList(new String[] { xmlContent }), StandardOpenOption.TRUNCATE_EXISTING);
+        for (Path part : getParts(unpackageDocx))
+        {
+            String xmlContent = prepareDocument(part);
+            Files.write(part, Arrays.asList(new String[] { xmlContent }), StandardOpenOption.TRUNCATE_EXISTING);
+        }
         
         Path packageTemplate = Packager.packageDocx(unpackageDocx);
         return new WebbleTemplate(packageTemplate, docx.getFileName().toString().replaceFirst("(.*)\\.docx$", "$1"));
     }
     
     /**
-     * Evaluates the given docx template, prepare it and generate focument with the given context.
+     * Evaluates the given docx template, prepare it and generate document with the given context.
      * For single use only. For bulk uses, see {@link WebbleEngine#prepare(Path)}.
      * @param docx the path to a valid Microsoft Word Document used as the template.
      * @param context the keys/values to bind with the template.
@@ -68,14 +68,15 @@ public class WebbleEngine
     
         PebbleEngine engine = new PebbleEngine.Builder().loader(new StringLoader()).build();
     
-        Path doc = unpackageDocx.resolve("word/document.xml");
-    
-        String xmlContent = prepareDocument(doc);
-    
-        Writer writer = new StringWriter();
-        engine.getTemplate(xmlContent).evaluate(writer, context);
-        Files.write(doc, Arrays.asList(new String[] { writer.toString().replaceAll("\n", "<w:br/>") }),
-                StandardOpenOption.TRUNCATE_EXISTING);
+        for (Path part : getParts(unpackageDocx))
+        {
+            String xmlContent = prepareDocument(part);
+        
+            Writer writer = new StringWriter();
+            engine.getTemplate(xmlContent).evaluate(writer, context);
+            Files.write(part, Arrays.asList(new String[] { writer.toString().replaceAll("\n", "<w:br/>") }),
+                    StandardOpenOption.TRUNCATE_EXISTING);
+        }
     
         return Packager.packageDocx(unpackageDocx);
     }
@@ -94,14 +95,15 @@ public class WebbleEngine
     
         PebbleEngine engine = new PebbleEngine.Builder().loader(new StringLoader()).build();
     
-        Path doc = unpackageDocx.resolve("word/document.xml");
-    
-        String xmlContent = Files.readAllLines(doc).stream().collect(Collectors.joining());
-    
-        Writer writer = new StringWriter();
-        engine.getTemplate(xmlContent).evaluate(writer, context);
-        Files.write(doc, Arrays.asList(new String[] { writer.toString().replaceAll("\n", "<w:br/>") }),
-                StandardOpenOption.TRUNCATE_EXISTING);
+        for (Path part : getParts(unpackageDocx))
+        {
+            String xmlContent = Files.readAllLines(part).stream().collect(Collectors.joining());
+        
+            Writer writer = new StringWriter();
+            engine.getTemplate(xmlContent).evaluate(writer, context);
+            Files.write(part, Arrays.asList(new String[] { writer.toString().replaceAll("\n", "<w:br/>") }),
+                    StandardOpenOption.TRUNCATE_EXISTING);
+        }
     
         return Packager.packageDocx(unpackageDocx);
     }
@@ -266,5 +268,20 @@ public class WebbleEngine
         m.appendTail(sb);
 
         return sb.toString();
+    }
+    
+    /**
+     * Returns the parts to evaluate
+     * @param unpackageDocx the path to the unziped Microsoft Office Word document.
+     * @return the list of file to evaluate.
+     * @throws IOException if cannot fetch the parts to evaluate.
+     */
+    private static List<Path> getParts(Path unpackageDocx) throws IOException
+    {
+        List<Path> parts = Files.list(unpackageDocx.resolve("word"))
+            .filter(p -> p.getFileName().toString().matches("(document|header\\d+|footer\\d+).xml"))
+            .collect(Collectors.toList());
+        
+        return parts;
     }
 }

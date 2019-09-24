@@ -13,9 +13,6 @@ import java.util.Map;
 
 import org.testng.annotations.Test;
 
-import io.github.flef.webble.WebbleEngine;
-import io.github.flef.webble.WebbleTemplate;
-
 /**
  * Test on a valid docx template document.
  */
