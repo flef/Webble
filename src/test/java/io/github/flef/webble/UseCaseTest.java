@@ -8,8 +8,6 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.testng.annotations.Test;
 
@@ -18,17 +16,28 @@ import org.testng.annotations.Test;
  */
 public class UseCaseTest
 {
-    private static final  Map<String, Object> CONTEXT = new HashMap<>();
+    private static final  WebbleContext CONTEXT = new WebbleContext();
     
     static
     {
-        CONTEXT.put("names", Arrays.asList(new String[] { "Nal AYA", "Flo LEF" }));
-        CONTEXT.put("dates", Arrays.asList(new Date[] { Date.from(Instant.now()) }));
-        CONTEXT.put("multiline", "This is line1.\nThis is line 2.");
-        CONTEXT.put("aujd", Date.from(Instant.now()));
+        // Bindings
+        CONTEXT.bind("names", Arrays.asList(new String[] { "Nal AYA", "Flo LEF" }));
+        CONTEXT.bind("dates", Arrays.asList(new Date[] { Date.from(Instant.now()) }));
+        CONTEXT.bind("multiline", "This is line1.\nThis is line 2.");
+        CONTEXT.bind("aujd", Date.from(Instant.now()));
         String[][] items = new String[][] { new String[] { "list1_item1", "list1_item2" },
             new String[] { "list2_item1", "list2_item2", "list2_item3" } };
-        CONTEXT.put("list", items);
+        CONTEXT.bind("list", items);
+        
+        // Document properties
+        CONTEXT.setPropertyTitle("Template title");
+        CONTEXT.setPropertyCreator("Webble_user");
+        CONTEXT.setPropertyLastModifiedBy("Webble_user");
+        CONTEXT.setPropertySubject("Webble example");
+        CONTEXT.setPropertyDescription("This is an example of webble template");
+        CONTEXT.setPropertyModified(Instant.now());
+        
+        CONTEXT.setCustomProperty("_PROPERTY_TEST", "Value of Property _PROPERTY_TEST.");
     }
     
     /**
@@ -42,7 +51,7 @@ public class UseCaseTest
         Path docx = Paths.get(UseCaseTest.class.getClassLoader().getResource("example.docx").toURI());
         
         // Generate document
-        System.out.println("Document generated at:" + WebbleEngine.evaluate(docx, CONTEXT));
+        System.out.println("Document generated at: " + WebbleEngine.evaluate(docx, CONTEXT));
     }
     
     /**
@@ -57,8 +66,8 @@ public class UseCaseTest
         
         // Prepare docx -> .wbbl
         WebbleTemplate template = WebbleEngine.prepare(docx);
-        System.out.println("Document 1 generated at:" + WebbleEngine.evaluate(template, CONTEXT));
-        System.out.println("Document 2 generated at:" + WebbleEngine.evaluate(template, CONTEXT));
+        System.out.println("Document 1 generated at: " + WebbleEngine.evaluate(template, CONTEXT));
+        System.out.println("Document 2 generated at: " + WebbleEngine.evaluate(template, CONTEXT));
     }
     
     /**
@@ -73,7 +82,7 @@ public class UseCaseTest
         
         // Prepare docx -> .wbbl
         WebbleTemplate template = WebbleTemplate.load(wbbl);
-        System.out.println("Document generated at:" + WebbleEngine.evaluate(template, CONTEXT));
+        System.out.println("Document generated at: " + WebbleEngine.evaluate(template, CONTEXT));
     }
     
     /**
@@ -94,6 +103,6 @@ public class UseCaseTest
         
         // Prepare docx -> .wbbl
         WebbleTemplate persistedTemplate = WebbleTemplate.load(dst.resolve("template.wbbl"));
-        System.out.println("Document generated at:" + WebbleEngine.evaluate(persistedTemplate, CONTEXT));
+        System.out.println("Document generated at: " + WebbleEngine.evaluate(persistedTemplate, CONTEXT));
     }
 }

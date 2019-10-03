@@ -14,6 +14,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.sound.midi.SysexMessage;
+
 import org.jdom2.Comment;
 import org.jdom2.Document;
 import org.jdom2.Element;
@@ -24,6 +26,8 @@ import org.jdom2.filter.ElementFilter;
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.loader.StringLoader;
 
+import io.github.flef.webble.WebbleContext.WordProperty;
+
 /**
  * This class is used to generate docx document from a template and a given context.
  */
@@ -32,10 +36,13 @@ public class WebbleEngine
     /** w: namespace. */
     private final static Namespace NS_W = Namespace.getNamespace("w",
             "http://schemas.openxmlformats.org/wordprocessingml/2006/main");
+    /** vt: namespace. */
+    private final static Namespace NS_VT = Namespace.getNamespace("vt",
+            "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes");
 
     /**
      * Prepares the docx document to be used as a template.
-     * For single use, see {@link #evaluate(Path, Map)}.
+     * For single use, see {@link #evaluate(Path, WebbleContext)}
      * @param docx the path to a valid Microsoft Word Document used as the template.
      * @return a {@link WebbleTemplate} from the given docx.
      * @throws IOException if the given path is not a valid Microsoft Word Document, or the MS Word cannot be prepared.
@@ -58,22 +65,25 @@ public class WebbleEngine
      * Evaluates the given docx template, prepare it and generate document with the given context.
      * For single use only. For bulk uses, see {@link WebbleEngine#prepare(Path)}.
      * @param docx the path to a valid Microsoft Word Document used as the template.
-     * @param context the keys/values to bind with the template.
+     * @param context the {@link WebbleContext} to bind with the template.
      * @return the path to the created Microsoft Word Document from the given template and context.
      * @throws IOException if the given path is not a valid Microsoft Word Document, or the MS Word cannot be evaluated.
      */
-    public static Path evaluate(Path docx, Map<String, Object> context) throws IOException
+    public static Path evaluate(Path docx, WebbleContext context) throws IOException
     {
         Path unpackageDocx = Packager.unpackageDocx(docx);
     
         PebbleEngine engine = new PebbleEngine.Builder().loader(new StringLoader()).build();
     
+        evaluateCoreProperties(unpackageDocx, context);
+        evaluateCustomProperties(unpackageDocx, context);
+        
         for (Path part : getParts(unpackageDocx))
         {
             String xmlContent = prepareDocument(part);
         
             Writer writer = new StringWriter();
-            engine.getTemplate(xmlContent).evaluate(writer, context);
+            engine.getTemplate(xmlContent).evaluate(writer, context.getBindings());
             Files.write(part, Arrays.asList(new String[] { writer.toString().replaceAll("\n", "<w:br/>") }),
                     StandardOpenOption.TRUNCATE_EXISTING);
         }
@@ -84,23 +94,26 @@ public class WebbleEngine
     /**
      * Evaluates the given {@link WebbleTemplate} to generate a document with the given context.
      * @param template the {@link WebbleTemplate} used to generate the document.
-     * @param context the keys/values to bind with the template.
+     * @param context the {@link WebbleContext} to bind with the template.
      * @return the path to the created Microsoft Word Document from the given template and context.
      * @throws IOException if the given template is not a valid {@link WebbleTemplate},
      * or the {@link WebbleTemplate} cannot be evaluated.
      */
-    public static Path evaluate(WebbleTemplate template, Map<String, Object> context) throws IOException
+    public static Path evaluate(WebbleTemplate template, WebbleContext context) throws IOException
     {
         Path unpackageDocx = Packager.unpackageDocx(template.getTemplatePath());
     
         PebbleEngine engine = new PebbleEngine.Builder().loader(new StringLoader()).build();
-    
+
+        evaluateCoreProperties(unpackageDocx, context);
+        evaluateCustomProperties(unpackageDocx, context);
+        
         for (Path part : getParts(unpackageDocx))
         {
             String xmlContent = Files.readAllLines(part).stream().collect(Collectors.joining());
         
             Writer writer = new StringWriter();
-            engine.getTemplate(xmlContent).evaluate(writer, context);
+            engine.getTemplate(xmlContent).evaluate(writer, context.getBindings());
             Files.write(part, Arrays.asList(new String[] { writer.toString().replaceAll("\n", "<w:br/>") }),
                     StandardOpenOption.TRUNCATE_EXISTING);
         }
@@ -257,7 +270,8 @@ public class WebbleEngine
             String filteredContent = m.group(0)
                     .replaceAll("<[^>]+>", "") // Remove XML Nodes
                     .replaceAll("(« ?)|( ?»)", "\"")
-                    .replaceAll("(‘ ?)|( ?’)", "'")
+                    .replaceAll("‘|’", "'")
+                    .replaceAll("“|”|„", "\"")
                     .replaceAll("&gt;", ">")
                     .replaceAll("&lt;", "<")
                     .replaceAll(" ", " "); // CAREFULL, here we replace Word space ( ) with common space.
@@ -268,6 +282,58 @@ public class WebbleEngine
         m.appendTail(sb);
 
         return sb.toString();
+    }
+    
+    
+    private static void evaluateCoreProperties(Path unpackageDocx, WebbleContext context) throws IOException
+    {
+        Path doc = unpackageDocx.resolve("docProps/core.xml");
+        String xmlContent = Files.readAllLines(doc).stream().collect(Collectors.joining());
+        Document xmlDoc = WebbleMarkupSimplifier.stringToDocument(xmlContent);
+        
+        List<Element> properties = new ArrayList<>();
+        xmlDoc.getRootElement().getDescendants(new ElementFilter()).forEach(properties::add);
+        
+        for (Element property : properties)
+        {
+            WordProperty<?> contextProp = context.getCoreProperties().get(property.getName());
+            if (contextProp != null && contextProp.getValue() != null) // if prop has been set in WebbleContext
+            {
+                property.setText(contextProp.getFormattedValue());
+            }
+        }
+
+        Files.write(doc, Arrays.asList(new String[] { WebbleMarkupSimplifier.documentToString(xmlDoc) }),
+                StandardOpenOption.TRUNCATE_EXISTING);
+    }
+    
+    private static void evaluateCustomProperties(Path unpackageDocx, WebbleContext context) throws IOException
+    {
+        Path doc = unpackageDocx.resolve("docProps/custom.xml");
+        
+        if (!doc.toFile().canRead())
+        {
+            return;
+        }
+        
+        String xmlContent = Files.readAllLines(doc).stream().collect(Collectors.joining());
+        Document xmlDoc = WebbleMarkupSimplifier.stringToDocument(xmlContent);
+        
+        List<Element> properties = new ArrayList<>();
+        xmlDoc.getRootElement().getDescendants(new ElementFilter("property")).forEach(properties::add);
+        
+        for (Element property : properties)
+        {
+            String propertyRef = property.getAttributeValue("name");
+            String propValue = context.getCustomProperties().get(propertyRef);
+            if (propValue != null) // if prop has been set in WebbleContext
+            {
+                property.getChild("lpwstr", NS_VT).setText(propValue);
+            }
+        }
+
+        Files.write(doc, Arrays.asList(new String[] { WebbleMarkupSimplifier.documentToString(xmlDoc) }),
+                StandardOpenOption.TRUNCATE_EXISTING);
     }
     
     /**

@@ -35,7 +35,8 @@ public class WebbleTemplate
      */
     public void persist(Path dstFolder, String filename) throws IOException
     {
-        Files.copy(templatePath, new FileOutputStream(new File(dstFolder.resolve(filename + WEBBLE_EXTENSION).toString())));
+        Files.copy(templatePath, 
+                   new FileOutputStream(new File(dstFolder.resolve(filename + WEBBLE_EXTENSION).toString())));
     }
     
     /**
