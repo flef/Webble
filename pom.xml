@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.flef</groupId>
     <artifactId>webble</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2-SNAPSHOT</version>
     <name>Webble</name>
     <description>Pebble for Word Templating</description>
     <url>https://github.com/flef/Webble</url>
@@ -18,7 +18,7 @@
         <connection>scm:git:git://github.com/flef/Webble.git</connection>
         <developerConnection>scm:git:git@github.com:flef/Webble.git</developerConnection>
         <url>https://github.com/flef/Webble</url>
-        <tag>webble-1.0.1</tag>
+        <tag>HEAD</tag>
     </scm>
     
     <developers>
