@@ -21,7 +21,7 @@ public class WebbleContext
     private static final String CREATOR = "creator";
     private static final String SUBJECT = "subject";
     private static final String TITLE = "title";
-    
+
     private final WordProperty<String> propertyCoreTitle = new WordProperty<>(TITLE, WordProperty.STRING);
     private final WordProperty<String> propertyCoreSubject = new WordProperty<>(SUBJECT, String::valueOf);
     private final WordProperty<String> propertyCoreCreator = new WordProperty<>(CREATOR, WordProperty.STRING);
@@ -37,18 +37,21 @@ public class WebbleContext
     private final Map<String, WordProperty<?>> coreProperties = new HashMap<>();
     private final Map<String, String> customProperties = new HashMap<>();
     private final Map<String, Object> objectsBindings = new HashMap<>();
-    
+
+    /**
+     * Constructor.
+     */
     public WebbleContext()
     {
-        coreProperties.put(MODIFIED , propertyCoreModified);
-        coreProperties.put(CREATED , propertyCoreCreated);
-        coreProperties.put(REVISION , propertyCoreRevision);
-        coreProperties.put(LAST_MODIFIED_BY , propertyCoreLastModifiedBy);
-        coreProperties.put(DESCRIPTION , propertyCoreDescription);
-        coreProperties.put(KEYWORDS , propertyCoreKeywords);
-        coreProperties.put(CREATOR , propertyCoreCreator);
-        coreProperties.put(SUBJECT , propertyCoreSubject);
-        coreProperties.put(TITLE , propertyCoreTitle);
+        coreProperties.put(MODIFIED, propertyCoreModified);
+        coreProperties.put(CREATED, propertyCoreCreated);
+        coreProperties.put(REVISION, propertyCoreRevision);
+        coreProperties.put(LAST_MODIFIED_BY, propertyCoreLastModifiedBy);
+        coreProperties.put(DESCRIPTION, propertyCoreDescription);
+        coreProperties.put(KEYWORDS, propertyCoreKeywords);
+        coreProperties.put(CREATOR, propertyCoreCreator);
+        coreProperties.put(SUBJECT, propertyCoreSubject);
+        coreProperties.put(TITLE, propertyCoreTitle);
     }
 
     /**
@@ -62,7 +65,7 @@ public class WebbleContext
     {
         objectsBindings.put(reference, value);
     }
-    
+
     /**
      * Unbind the given reference (to not be used used in templates).
      * 
@@ -72,10 +75,10 @@ public class WebbleContext
     {
         objectsBindings.remove(reference);
     }
-    
-    
+
     /**
      * Returns the bindings betwin pebble properties and objects.
+     * 
      * @return the bindings betwin pebble properties and objects.
      */
     Map<String, Object> getBindings()
@@ -183,21 +186,32 @@ public class WebbleContext
     {
         propertyCoreModified.setValue(value);
     }
-    
-    
-    
+
+    /**
+     * Returns the Map of Word core properties.
+     * 
+     * @return the Map of Word core properties.
+     */
     Map<String, WordProperty<?>> getCoreProperties()
     {
         return coreProperties;
     }
 
-    
+    /**
+     * Returns the map of User's custom word properties.
+     * 
+     * @return the map of User's custom word properties.
+     */
     Map<String, String> getCustomProperties()
     {
         return customProperties;
     }
 
-
+    /**
+     * Represent a Word Core property.
+     * 
+     * @param <T> the type of the object to bind
+     */
     static class WordProperty<T>
     {
         static final Function<String, String> STRING = s -> s;
@@ -208,32 +222,67 @@ public class WebbleContext
         private final Function<T, String> formatter;
         private T value;
 
+        /**
+         * The class constructor.
+         * 
+         * @param referer   the name of the word property
+         * @param formatter the formatter used to convert bind object to String value.
+         */
         WordProperty(String referer, Function<T, String> formatter)
         {
             this.referer = referer;
             this.formatter = formatter;
         }
 
+        /**
+         * Returns the Core property name.
+         * 
+         * @return the Core property name.
+         */
         public String getReferer()
         {
             return referer;
         }
 
+        /**
+         * Returns the property bound value. (if any, or null).
+         * 
+         * @return the property bound value. (if any, or null).
+         */
         public T getValue()
         {
             return value;
         }
-        
+
+        /**
+         * Returns the property value serialized into a String, or empty string if value hasn't been bound.
+         * 
+         * @return the property value serialized into a String, or empty string if value hasn't been bound.
+         */
         public String getFormattedValue()
         {
+            if (value == null)
+            {
+                return "";
+            }
             return formatter.apply(value);
         }
 
+        /**
+         * Bind a value to the core property.
+         * 
+         * @param value the value to bind to the property.
+         */
         public void setValue(T value)
         {
             this.value = value;
         }
 
+        /**
+         * Returns true if a value has been bound to the property, false otherwise.
+         * 
+         * @return true if a value has been bound to the property, false otherwise.
+         */
         public boolean isSet()
         {
             return true;
