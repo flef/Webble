@@ -45,10 +45,7 @@ public class UseCaseTest
     
     /**
      * Tries to generate a document from an unprepared docx template document (.docx).
-     * @throws URISyntaxException 
-     * @throws IOException 
      */
-    @Test
     public void generateOnce() throws URISyntaxException, IOException
     {
         System.out.println("Document generated at: " + WebbleEngine.evaluate(docx, CONTEXT));
@@ -56,10 +53,7 @@ public class UseCaseTest
 
     /**
      * Tries to generate many document from an already prepared docx template document (.wbbl).
-     * @throws URISyntaxException 
-     * @throws IOException 
      */
-    @Test
     public void prepareAndPersist() throws URISyntaxException, IOException
     {
         Path docx = Paths.get(UseCaseTest.class.getClassLoader().getResource("example.docx").toURI());
